@@ -16,15 +16,23 @@
     <ul id="task-list" class="task-list" aria-live="polite"></ul>
   </div>
   <script>
-    // タスクの保存・復元（LocalStorage）
+    // タスクの保存・復元（LocalStorage） — 完了/削除 対応
     const TASKS_KEY = 'todo-app.tasks';
     const input = document.getElementById('task-input');
     const btn = document.getElementById('add-button');
     const list = document.getElementById('task-list');
 
+    // Load tasks, migrating from legacy string-array to object-array if needed
     function loadTasks() {
       try {
-        return JSON.parse(localStorage.getItem(TASKS_KEY) || '[]');
+        const raw = JSON.parse(localStorage.getItem(TASKS_KEY) || '[]');
+        // If stored as array of strings, convert to objects
+        if (Array.isArray(raw) && raw.every(item => typeof item === 'string')) {
+          return raw.map(text => ({ text, done: false }));
+        }
+        // Validate objects
+        if (Array.isArray(raw)) return raw.map(item => ({ text: item.text ?? '', done: !!item.done }));
+        return [];
       } catch (e) {
         return [];
       }
@@ -34,12 +42,47 @@
       localStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
     }
 
+    function toggleTask(index) {
+      const tasks = loadTasks();
+      if (!tasks[index]) return;
+      tasks[index].done = !tasks[index].done;
+      saveTasks(tasks);
+      renderTasks();
+    }
+
+    function deleteTask(index) {
+      const tasks = loadTasks();
+      if (!tasks[index]) return;
+      tasks.splice(index, 1);
+      saveTasks(tasks);
+      renderTasks();
+    }
+
     function renderTasks() {
       list.innerHTML = '';
       const tasks = loadTasks();
-      tasks.forEach((t) => {
+      tasks.forEach((t, i) => {
         const li = document.createElement('li');
-        li.textContent = t;
+
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = !!t.done;
+        cb.addEventListener('change', () => toggleTask(i));
+        cb.setAttribute('aria-label', `完了: ${t.text}`);
+
+        const span = document.createElement('span');
+        span.textContent = t.text;
+        if (t.done) span.style.textDecoration = 'line-through';
+        span.style.margin = '0 8px';
+
+        const del = document.createElement('button');
+        del.textContent = '削除';
+        del.addEventListener('click', () => deleteTask(i));
+        del.style.marginLeft = '8px';
+
+        li.appendChild(cb);
+        li.appendChild(span);
+        li.appendChild(del);
         list.appendChild(li);
       });
     }
@@ -48,7 +91,7 @@
       const v = value.trim();
       if (!v) return;
       const tasks = loadTasks();
-      tasks.push(v);
+      tasks.push({ text: v, done: false });
       saveTasks(tasks);
       renderTasks();
       input.value = '';
