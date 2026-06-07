@@ -16,19 +16,50 @@
     <ul id="task-list" class="task-list" aria-live="polite"></ul>
   </div>
   <script>
-    // 最小限の動作（DOMのみ）
+    // タスクの保存・復元（LocalStorage）
+    const TASKS_KEY = 'todo-app.tasks';
     const input = document.getElementById('task-input');
     const btn = document.getElementById('add-button');
     const list = document.getElementById('task-list');
-    btn.addEventListener('click', () => {
-      const v = input.value.trim();
+
+    function loadTasks() {
+      try {
+        return JSON.parse(localStorage.getItem(TASKS_KEY) || '[]');
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveTasks(tasks) {
+      localStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
+    }
+
+    function renderTasks() {
+      list.innerHTML = '';
+      const tasks = loadTasks();
+      tasks.forEach((t) => {
+        const li = document.createElement('li');
+        li.textContent = t;
+        list.appendChild(li);
+      });
+    }
+
+    function addTask(value) {
+      const v = value.trim();
       if (!v) return;
-      const li = document.createElement('li');
-      li.textContent = v;
-      list.appendChild(li);
+      const tasks = loadTasks();
+      tasks.push(v);
+      saveTasks(tasks);
+      renderTasks();
       input.value = '';
-    });
-    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') btn.click(); });
+      input.focus();
+    }
+
+    btn.addEventListener('click', () => addTask(input.value));
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') addTask(input.value); });
+
+    // 初期表示
+    renderTasks();
   </script>
 </body>
 </html>
